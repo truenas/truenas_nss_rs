@@ -1,0 +1,73 @@
+#!/usr/bin/make -f
+
+# See debhelper(7) (uncomment to enable)
+# output every command that modifies files on the build system.
+export DH_VERBOSE = 1
+
+# see FEATURE AREAS in dpkg-buildflags(1)
+export DEB_BUILD_MAINT_OPTIONS = hardening=+all
+
+# see ENVIRONMENT in dpkg-buildflags(1)
+# package maintainers to append CFLAGS
+export DEB_CFLAGS_MAINT_APPEND  = -Wall -pedantic
+# package maintainers to append CPPFLAGS
+export DEB_CPPFLAGS_MAINT_APPEND = -D_FORTIFY_SOURCE=2
+# package maintainers to append LDFLAGS
+export DEB_LDFLAGS_MAINT_APPEND = -Wl,--as-needed
+
+# Cargo configuration
+export CARGO_HOME = $(CURDIR)/debian/cargo_home
+
+%:
+	dh $@
+
+override_dh_auto_configure:
+	# Initialize cargo home
+	mkdir -p $(CARGO_HOME)
+
+override_dh_auto_build:
+	# Build the library in release mode
+	cargo build --release --lib
+	# Build benchmarks (optional, for completeness)
+	cargo build --release --benches
+
+override_dh_auto_test:
+	# Run tests
+	cargo test --release
+
+override_dh_auto_install:
+	# Install shared library
+	install -D -m 644 target/release/libtruenas_rust_nss.so \
+		$(CURDIR)/debian/libtruenas-rust-nss1/usr/lib/$(DEB_HOST_MULTIARCH)/libtruenas_rust_nss.so.1.0.0
+	# Create symlinks for shared library
+	ln -sf libtruenas_rust_nss.so.1.0.0 \
+		$(CURDIR)/debian/libtruenas-rust-nss1/usr/lib/$(DEB_HOST_MULTIARCH)/libtruenas_rust_nss.so.1
+	# Create directory for dev package and add development symlink
+	mkdir -p $(CURDIR)/debian/libtruenas-rust-nss-dev/usr/lib/$(DEB_HOST_MULTIARCH)
+	ln -sf libtruenas_rust_nss.so.1.0.0 \
+		$(CURDIR)/debian/libtruenas-rust-nss-dev/usr/lib/$(DEB_HOST_MULTIARCH)/libtruenas_rust_nss.so
+	# Install Rust library file for development
+	install -D -m 644 target/release/libtruenas_rust_nss.rlib \
+		$(CURDIR)/debian/libtruenas-rust-nss-dev/usr/lib/rust/libtruenas_rust_nss.rlib
+	# Install pkg-config file
+	mkdir -p $(CURDIR)/debian/libtruenas-rust-nss-dev/usr/lib/$(DEB_HOST_MULTIARCH)/pkgconfig
+	echo "prefix=/usr" > $(CURDIR)/debian/libtruenas-rust-nss-dev/usr/lib/$(DEB_HOST_MULTIARCH)/pkgconfig/truenas-rust-nss.pc
+	echo "exec_prefix=\$${prefix}" >> $(CURDIR)/debian/libtruenas-rust-nss-dev/usr/lib/$(DEB_HOST_MULTIARCH)/pkgconfig/truenas-rust-nss.pc
+	echo "libdir=\$${prefix}/lib/$(DEB_HOST_MULTIARCH)" >> $(CURDIR)/debian/libtruenas-rust-nss-dev/usr/lib/$(DEB_HOST_MULTIARCH)/pkgconfig/truenas-rust-nss.pc
+	echo "includedir=\$${prefix}/include" >> $(CURDIR)/debian/libtruenas-rust-nss-dev/usr/lib/$(DEB_HOST_MULTIARCH)/pkgconfig/truenas-rust-nss.pc
+	echo "" >> $(CURDIR)/debian/libtruenas-rust-nss-dev/usr/lib/$(DEB_HOST_MULTIARCH)/pkgconfig/truenas-rust-nss.pc
+	echo "Name: TrueNAS Rust NSS" >> $(CURDIR)/debian/libtruenas-rust-nss-dev/usr/lib/$(DEB_HOST_MULTIARCH)/pkgconfig/truenas-rust-nss.pc
+	echo "Description: High-performance NSS library implemented in Rust" >> $(CURDIR)/debian/libtruenas-rust-nss-dev/usr/lib/$(DEB_HOST_MULTIARCH)/pkgconfig/truenas-rust-nss.pc
+	echo "Version: 0.1.0" >> $(CURDIR)/debian/libtruenas-rust-nss-dev/usr/lib/$(DEB_HOST_MULTIARCH)/pkgconfig/truenas-rust-nss.pc
+	echo "Libs: -L\$${libdir} -ltruenas_rust_nss" >> $(CURDIR)/debian/libtruenas-rust-nss-dev/usr/lib/$(DEB_HOST_MULTIARCH)/pkgconfig/truenas-rust-nss.pc
+
+override_dh_auto_clean:
+	# Clean cargo build artifacts
+	cargo clean || true
+	rm -rf $(CARGO_HOME)
+
+override_dh_strip:
+	# Strip debug symbols from shared library
+	dh_strip --dbgsym-migration='libtruenas-rust-nss1-dbg (<< 0.1.0-1~)'
+
+.PHONY: override_dh_auto_configure override_dh_auto_build override_dh_auto_test override_dh_auto_install override_dh_auto_clean override_dh_strip

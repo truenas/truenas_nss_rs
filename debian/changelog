@@ -1,0 +1,11 @@
+truenas-rust-nss (0.1.0-1) unstable; urgency=medium
+
+  * Initial release of TrueNAS Rust NSS library
+  * High-performance NSS implementation with function pointer caching
+  * Support for FILES, SSS, and WINBIND NSS modules
+  * JSON serialization support via serde
+  * Thread-safe operations with comprehensive error handling
+  * Performance benchmarks showing 25%+ improvement over users crate
+  * Comprehensive test suite with unit and integration tests
+
+ -- Andrew Walker <andrew.walker@truenas.com>  Tue, 29 Jul 2025 00:00:00 +0000

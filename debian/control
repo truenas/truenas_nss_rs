@@ -1,0 +1,43 @@
+Source: truenas-rust-nss
+Section: admin
+Priority: optional
+Maintainer: TrueNAS Team <support@truenas.com>
+Build-Depends: debhelper (>= 13),
+               cargo,
+               rustc (>= 1.70),
+               pkg-config,
+               libc6-dev
+Standards-Version: 4.6.0
+Homepage: https://github.com/truenas/truenas_rust_nss
+Vcs-Git: https://github.com/truenas/truenas_rust_nss.git
+Vcs-Browser: https://github.com/truenas/truenas_rust_nss
+
+Package: libtruenas-rust-nss1
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Description: TrueNAS Rust NSS (Name Service Switch) library
+ This package provides a high-performance Rust implementation of NSS
+ (Name Service Switch) functionality for user and group lookups.
+ .
+ The library provides direct access to NSS modules (FILES, SSS, WINBIND)
+ with optimized function pointer caching for improved performance over
+ traditional NSS implementations.
+ .
+ Features:
+  - Direct NSS module access with cached function pointers
+  - JSON serialization support via serde
+  - Thread-safe operations
+  - Comprehensive error handling
+  - Performance optimized for high-frequency lookups
+
+Package: libtruenas-rust-nss-dev
+Architecture: any
+Section: libdevel
+Depends: libtruenas-rust-nss1 (= ${binary:Version}),
+         ${misc:Depends}
+Description: Development files for TrueNAS Rust NSS library
+ This package contains the development files needed to compile applications
+ that use the TrueNAS Rust NSS library.
+ .
+ This includes the Rust library files (.rlib) and header information
+ needed for linking against the library.

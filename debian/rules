@@ -30,44 +30,38 @@ override_dh_auto_build:
 	cargo build --release --lib
 	# Build benchmarks (optional, for completeness)
 	cargo build --release --benches
+	# Create Python virtual environment and install maturin
+	python3 -m venv debian/python-build-env
+	. debian/python-build-env/bin/activate && pip install --upgrade pip maturin
+	# Build Python wheel
+	. debian/python-build-env/bin/activate && maturin build --release --features python --out target/wheels/
 
 override_dh_auto_test:
 	# Run tests
 	cargo test --release
 
 override_dh_auto_install:
-	# Install shared library
-	install -D -m 644 target/release/libtruenas_rust_nss.so \
-		$(CURDIR)/debian/libtruenas-rust-nss1/usr/lib/$(DEB_HOST_MULTIARCH)/libtruenas_rust_nss.so.1.0.0
-	# Create symlinks for shared library
-	ln -sf libtruenas_rust_nss.so.1.0.0 \
-		$(CURDIR)/debian/libtruenas-rust-nss1/usr/lib/$(DEB_HOST_MULTIARCH)/libtruenas_rust_nss.so.1
-	# Create directory for dev package and add development symlink
-	mkdir -p $(CURDIR)/debian/libtruenas-rust-nss-dev/usr/lib/$(DEB_HOST_MULTIARCH)
-	ln -sf libtruenas_rust_nss.so.1.0.0 \
-		$(CURDIR)/debian/libtruenas-rust-nss-dev/usr/lib/$(DEB_HOST_MULTIARCH)/libtruenas_rust_nss.so
 	# Install Rust library file for development
 	install -D -m 644 target/release/libtruenas_rust_nss.rlib \
 		$(CURDIR)/debian/libtruenas-rust-nss-dev/usr/lib/rust/libtruenas_rust_nss.rlib
-	# Install pkg-config file
-	mkdir -p $(CURDIR)/debian/libtruenas-rust-nss-dev/usr/lib/$(DEB_HOST_MULTIARCH)/pkgconfig
-	echo "prefix=/usr" > $(CURDIR)/debian/libtruenas-rust-nss-dev/usr/lib/$(DEB_HOST_MULTIARCH)/pkgconfig/truenas-rust-nss.pc
-	echo "exec_prefix=\$${prefix}" >> $(CURDIR)/debian/libtruenas-rust-nss-dev/usr/lib/$(DEB_HOST_MULTIARCH)/pkgconfig/truenas-rust-nss.pc
-	echo "libdir=\$${prefix}/lib/$(DEB_HOST_MULTIARCH)" >> $(CURDIR)/debian/libtruenas-rust-nss-dev/usr/lib/$(DEB_HOST_MULTIARCH)/pkgconfig/truenas-rust-nss.pc
-	echo "includedir=\$${prefix}/include" >> $(CURDIR)/debian/libtruenas-rust-nss-dev/usr/lib/$(DEB_HOST_MULTIARCH)/pkgconfig/truenas-rust-nss.pc
-	echo "" >> $(CURDIR)/debian/libtruenas-rust-nss-dev/usr/lib/$(DEB_HOST_MULTIARCH)/pkgconfig/truenas-rust-nss.pc
-	echo "Name: TrueNAS Rust NSS" >> $(CURDIR)/debian/libtruenas-rust-nss-dev/usr/lib/$(DEB_HOST_MULTIARCH)/pkgconfig/truenas-rust-nss.pc
-	echo "Description: High-performance NSS library implemented in Rust" >> $(CURDIR)/debian/libtruenas-rust-nss-dev/usr/lib/$(DEB_HOST_MULTIARCH)/pkgconfig/truenas-rust-nss.pc
-	echo "Version: 0.1.0" >> $(CURDIR)/debian/libtruenas-rust-nss-dev/usr/lib/$(DEB_HOST_MULTIARCH)/pkgconfig/truenas-rust-nss.pc
-	echo "Libs: -L\$${libdir} -ltruenas_rust_nss" >> $(CURDIR)/debian/libtruenas-rust-nss-dev/usr/lib/$(DEB_HOST_MULTIARCH)/pkgconfig/truenas-rust-nss.pc
+	# Install Rust source for development package
+	mkdir -p $(CURDIR)/debian/librust-truenas-nss-dev/usr/share/cargo/registry/truenas-nss-0.1.0
+	cp -r src/ Cargo.toml LICENSE README.md $(CURDIR)/debian/librust-truenas-nss-dev/usr/share/cargo/registry/truenas-nss-0.1.0/
+	# Generate .cargo-checksum.json
+	cd $(CURDIR)/debian/librust-truenas-nss-dev/usr/share/cargo/registry/truenas-nss-0.1.0 && \
+	echo '{"files":{},"package":""}' > .cargo-checksum.json
+	# Install Python wheel
+	. debian/python-build-env/bin/activate && pip install --target $(CURDIR)/debian/python3-truenas-nss/usr/lib/python3/dist-packages target/wheels/truenas_nss-*.whl
+	# Remove __pycache__ directories
+	find $(CURDIR)/debian/python3-truenas-nss -name "__pycache__" -type d -exec rm -rf {} + || true
 
 override_dh_auto_clean:
 	# Clean cargo build artifacts
 	cargo clean || true
 	rm -rf $(CARGO_HOME)
+	# Clean Python build environment
+	rm -rf debian/python-build-env
 
-override_dh_strip:
-	# Strip debug symbols from shared library
-	dh_strip --dbgsym-migration='libtruenas-rust-nss1-dbg (<< 0.1.0-1~)'
-
-.PHONY: override_dh_auto_configure override_dh_auto_build override_dh_auto_test override_dh_auto_install override_dh_auto_clean override_dh_strip
+override_dh_python3:
+	# Generate Python dependencies
+	dh_python3

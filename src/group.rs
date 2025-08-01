@@ -1,5 +1,4 @@
 use libc::{c_char, c_int, gid_t, group};
-use serde::{Deserialize, Serialize};
 use std::ffi::{CStr, CString};
 use std::mem;
 
@@ -8,7 +7,7 @@ use crate::nss_common::get_nss_function;
 
 const GROUP_INIT_BUFLEN: usize = 1024;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone)]
 pub struct GroupEntry {
     pub gr_name: String,
     pub gr_gid: gid_t,
@@ -16,23 +15,6 @@ pub struct GroupEntry {
     pub source: String,
 }
 
-impl GroupEntry {
-    /// Serialize the group entry to JSON.
-    ///
-    /// # Errors
-    /// Returns `serde_json::Error` if serialization fails.
-    pub fn to_json(&self) -> Result<String, serde_json::Error> {
-        serde_json::to_string(self)
-    }
-
-    /// Serialize the group entry to pretty-printed JSON.
-    ///
-    /// # Errors
-    /// Returns `serde_json::Error` if serialization fails.
-    pub fn to_json_pretty(&self) -> Result<String, serde_json::Error> {
-        serde_json::to_string_pretty(self)
-    }
-}
 
 unsafe fn parse_group_result(
     result: *const group,
@@ -74,7 +56,7 @@ unsafe fn parse_group_result(
         gr_name,
         gr_gid: group_ref.gr_gid,
         gr_mem,
-        source: module.name().to_string(),
+        source: module.upper_name().to_string(),
     }))
 }
 
@@ -216,6 +198,7 @@ pub fn getgrnam(name: &str, module: Option<NssModule>) -> NssResult<GroupEntry> 
             Ok(Some(entry)) => return Ok(entry),
             Ok(None) => continue,
             Err(NssError::NssOperationFailed { return_code: NssReturnCode::Unavail, .. }) => continue,
+            Err(NssError::LibraryError(_)) => continue, // Skip unavailable modules
             Err(e) => return Err(e),
         }
     }
@@ -243,6 +226,7 @@ pub fn getgrgid(gid: gid_t, module: Option<NssModule>) -> NssResult<GroupEntry> 
             Ok(Some(entry)) => return Ok(entry),
             Ok(None) => continue,
             Err(NssError::NssOperationFailed { return_code: NssReturnCode::Unavail, .. }) => continue,
+            Err(NssError::LibraryError(_)) => continue, // Skip unavailable modules
             Err(e) => return Err(e),
         }
     }
@@ -414,6 +398,10 @@ pub fn getgrall(module: Option<NssModule>) -> NssResult<Vec<GroupEntry>> {
             match result {
                 Ok(entry) => entries.push(entry),
                 Err(NssError::NssOperationFailed { return_code: NssReturnCode::Unavail, .. }) => break,
+                Err(NssError::LibraryError(_)) => {
+                    // Library not available (e.g., winbind/sss not installed), skip this module
+                    break;
+                }
                 Err(e) => return Err(e),
             }
         }
@@ -426,7 +414,6 @@ pub fn getgrall(module: Option<NssModule>) -> NssResult<Vec<GroupEntry>> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use serde_json;
 
     #[test]
     fn test_group_entry_creation() {
@@ -443,43 +430,6 @@ mod tests {
         assert_eq!(entry.source, "files");
     }
 
-    #[test]
-    fn test_group_entry_json_serialization() {
-        let entry = GroupEntry {
-            gr_name: "testgroup".to_string(),
-            gr_gid: 1000,
-            gr_mem: vec!["user1".to_string(), "user2".to_string()],
-            source: "files".to_string(),
-        };
-
-        let json = entry.to_json().expect("Failed to serialize to JSON");
-        assert!(json.contains("testgroup"));
-        assert!(json.contains("1000"));
-        assert!(json.contains("user1"));
-        assert!(json.contains("user2"));
-        assert!(json.contains("files"));
-
-        // Test pretty JSON
-        let pretty_json = entry.to_json_pretty().expect("Failed to serialize to pretty JSON");
-        assert!(pretty_json.contains("testgroup"));
-        assert!(pretty_json.contains("\n")); // Should have newlines for pretty printing
-    }
-
-    #[test]
-    fn test_group_entry_json_deserialization() {
-        let json = r#"{
-            "gr_name": "testgroup",
-            "gr_gid": 1000,
-            "gr_mem": ["user1", "user2"],
-            "source": "files"
-        }"#;
-
-        let entry: GroupEntry = serde_json::from_str(json).expect("Failed to deserialize JSON");
-        assert_eq!(entry.gr_name, "testgroup");
-        assert_eq!(entry.gr_gid, 1000);
-        assert_eq!(entry.gr_mem, vec!["user1", "user2"]);
-        assert_eq!(entry.source, "files");
-    }
 
     #[test]
     fn test_group_entry_empty_members() {
@@ -495,10 +445,6 @@ mod tests {
         assert!(entry.gr_mem.is_empty());
         assert_eq!(entry.source, "files");
 
-        let json = entry.to_json().expect("Failed to serialize to JSON");
-        assert!(json.contains("emptygroup"));
-        assert!(json.contains("2000"));
-        assert!(json.contains("[]")); // Empty array
     }
 
     #[test]

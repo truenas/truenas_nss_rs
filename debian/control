@@ -6,13 +6,18 @@ Build-Depends: debhelper (>= 13),
                cargo,
                rustc (>= 1.70),
                pkg-config,
-               libc6-dev
+               libc6-dev,
+               python3-dev,
+               python3-pip,
+               python3-venv,
+               python3-setuptools,
+               python3-wheel
 Standards-Version: 4.6.0
-Homepage: https://github.com/truenas/truenas_rust_nss
-Vcs-Git: https://github.com/truenas/truenas_rust_nss.git
-Vcs-Browser: https://github.com/truenas/truenas_rust_nss
+Homepage: https://github.com/truenas/truenas_nss_rs
+Vcs-Git: https://github.com/truenas/truenas_nss_rs.git
+Vcs-Browser: https://github.com/truenas/truenas_nss_rs
 
-Package: libtruenas-rust-nss1
+Package: libtruenas-rust-nss0
 Architecture: any
 Depends: ${shlibs:Depends}, ${misc:Depends}
 Description: TrueNAS Rust NSS (Name Service Switch) library
@@ -33,7 +38,7 @@ Description: TrueNAS Rust NSS (Name Service Switch) library
 Package: libtruenas-rust-nss-dev
 Architecture: any
 Section: libdevel
-Depends: libtruenas-rust-nss1 (= ${binary:Version}),
+Depends: libtruenas-rust-nss0 (= ${binary:Version}),
          ${misc:Depends}
 Description: Development files for TrueNAS Rust NSS library
  This package contains the development files needed to compile applications
@@ -41,3 +46,42 @@ Description: Development files for TrueNAS Rust NSS library
  .
  This includes the Rust library files (.rlib) and header information
  needed for linking against the library.
+
+Package: librust-truenas-nss-dev
+Architecture: any
+Multi-Arch: same
+Section: rust
+Depends: ${misc:Depends}
+Provides: librust-truenas-nss+default-dev (= ${binary:Version}),
+          librust-truenas-nss-0-dev (= ${binary:Version}),
+          librust-truenas-nss-0+default-dev (= ${binary:Version}),
+          librust-truenas-nss-0.1-dev (= ${binary:Version}),
+          librust-truenas-nss-0.1+default-dev (= ${binary:Version}),
+          librust-truenas-nss-0.1.0-dev (= ${binary:Version}),
+          librust-truenas-nss-0.1.0+default-dev (= ${binary:Version})
+Description: TrueNAS Rust NSS library - Rust source code
+ This package contains the source code for the TrueNAS Rust NSS library,
+ packaged for use by other Rust crates.
+ .
+ The library provides direct access to NSS modules (FILES, SSS, WINBIND)
+ with optimized function pointer caching for improved performance.
+
+Package: python3-truenas-nss
+Architecture: any
+Section: python
+Depends: ${python3:Depends}, ${shlibs:Depends}, ${misc:Depends}, python3
+Description: Python 3 bindings for TrueNAS Rust NSS library
+ This package provides Python 3 bindings for the TrueNAS Rust NSS library,
+ offering high-performance user and group lookups compatible with Python's
+ standard pwd and grp modules.
+ .
+ The bindings provide three modules:
+  - nss_common: Core NSS functionality and error handling
+  - pwd: User/password lookup functions (getpwnam, getpwuid, getpwall, iterpw)
+  - grp: Group lookup functions (getgrnam, getgrgid, getgrall, itergrp)
+ .
+ Features:
+  - API-compatible with Python standard library pwd/grp modules
+  - Graceful handling of missing NSS modules (winbind/sss)
+  - High-performance implementation using PyO3 Rust bindings
+  - Support for bulk operations and iterator-based access

@@ -1,0 +1,41 @@
+[build-system]
+requires = ["maturin>=1.0,<2.0"]
+build-backend = "maturin"
+
+[project]
+name = "truenas-nss"
+description = "Python bindings for TrueNAS Rust NSS library"
+authors = [{name = "TrueNAS", email = "dev@truenas.com"}]
+license = {text = "GPL-3.0"}
+keywords = ["nss", "authentication", "user", "group", "system"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Intended Audience :: System Administrators",
+    "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Rust",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Topic :: System :: Systems Administration :: Authentication/Directory",
+]
+requires-python = ">=3.8"
+dynamic = ["version"]
+
+[project.urls]
+Homepage = "https://github.com/truenas/truenas_rust_nss"
+Repository = "https://github.com/truenas/truenas_rust_nss"
+Issues = "https://github.com/truenas/truenas_rust_nss/issues"
+
+[tool.maturin]
+module-name = "truenas_nss"
+bindings = "pyo3"
+
+[tool.ruff]
+line-length = 88
+target-version = "py38"

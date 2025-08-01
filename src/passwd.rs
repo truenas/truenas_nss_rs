@@ -1,5 +1,4 @@
 use libc::{c_char, c_int, gid_t, uid_t, passwd};
-use serde::{Deserialize, Serialize};
 use std::ffi::{CStr, CString};
 use std::mem;
 
@@ -8,7 +7,7 @@ use crate::nss_common::get_nss_function;
 
 const PASSWD_INIT_BUFLEN: usize = 1024;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone)]
 pub struct PasswdEntry {
     pub pw_name: String,
     pub pw_uid: uid_t,
@@ -19,23 +18,6 @@ pub struct PasswdEntry {
     pub source: String,
 }
 
-impl PasswdEntry {
-    /// Serialize the password entry to JSON.
-    ///
-    /// # Errors
-    /// Returns `serde_json::Error` if serialization fails.
-    pub fn to_json(&self) -> Result<String, serde_json::Error> {
-        serde_json::to_string(self)
-    }
-
-    /// Serialize the password entry to pretty-printed JSON.
-    ///
-    /// # Errors
-    /// Returns `serde_json::Error` if serialization fails.
-    pub fn to_json_pretty(&self) -> Result<String, serde_json::Error> {
-        serde_json::to_string_pretty(self)
-    }
-}
 
 unsafe fn parse_passwd_result(
     result: *const passwd,
@@ -90,7 +72,7 @@ unsafe fn parse_passwd_result(
         pw_gecos,
         pw_dir,
         pw_shell,
-        source: module.name().to_string(),
+        source: module.upper_name().to_string(),
     }))
 }
 
@@ -232,6 +214,7 @@ pub fn getpwnam(name: &str, module: Option<NssModule>) -> NssResult<PasswdEntry>
             Ok(Some(entry)) => return Ok(entry),
             Ok(None) => continue,
             Err(NssError::NssOperationFailed { return_code: NssReturnCode::Unavail, .. }) => continue,
+            Err(NssError::LibraryError(_)) => continue, // Skip unavailable modules
             Err(e) => return Err(e),
         }
     }
@@ -259,6 +242,7 @@ pub fn getpwuid(uid: uid_t, module: Option<NssModule>) -> NssResult<PasswdEntry>
             Ok(Some(entry)) => return Ok(entry),
             Ok(None) => continue,
             Err(NssError::NssOperationFailed { return_code: NssReturnCode::Unavail, .. }) => continue,
+            Err(NssError::LibraryError(_)) => continue, // Skip unavailable modules
             Err(e) => return Err(e),
         }
     }
@@ -430,6 +414,10 @@ pub fn getpwall(module: Option<NssModule>) -> NssResult<Vec<PasswdEntry>> {
             match result {
                 Ok(entry) => entries.push(entry),
                 Err(NssError::NssOperationFailed { return_code: NssReturnCode::Unavail, .. }) => break,
+                Err(NssError::LibraryError(_)) => {
+                    // Library not available (e.g., winbind/sss not installed), skip this module
+                    break;
+                }
                 Err(e) => return Err(e),
             }
         }
@@ -442,7 +430,6 @@ pub fn getpwall(module: Option<NssModule>) -> NssResult<Vec<PasswdEntry>> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use serde_json;
 
     #[test]
     fn test_passwd_entry_creation() {
@@ -465,53 +452,6 @@ mod tests {
         assert_eq!(entry.source, "files");
     }
 
-    #[test]
-    fn test_passwd_entry_json_serialization() {
-        let entry = PasswdEntry {
-            pw_name: "testuser".to_string(),
-            pw_uid: 1000,
-            pw_gid: 1000,
-            pw_gecos: "Test User".to_string(),
-            pw_dir: "/home/testuser".to_string(),
-            pw_shell: "/bin/bash".to_string(),
-            source: "files".to_string(),
-        };
-
-        let json = entry.to_json().expect("Failed to serialize to JSON");
-        assert!(json.contains("testuser"));
-        assert!(json.contains("1000"));
-        assert!(json.contains("Test User"));
-        assert!(json.contains("/home/testuser"));
-        assert!(json.contains("/bin/bash"));
-        assert!(json.contains("files"));
-
-        // Test pretty JSON
-        let pretty_json = entry.to_json_pretty().expect("Failed to serialize to pretty JSON");
-        assert!(pretty_json.contains("testuser"));
-        assert!(pretty_json.contains("\n")); // Should have newlines for pretty printing
-    }
-
-    #[test]
-    fn test_passwd_entry_json_deserialization() {
-        let json = r#"{
-            "pw_name": "testuser",
-            "pw_uid": 1000,
-            "pw_gid": 1000,
-            "pw_gecos": "Test User",
-            "pw_dir": "/home/testuser",
-            "pw_shell": "/bin/bash",
-            "source": "files"
-        }"#;
-
-        let entry: PasswdEntry = serde_json::from_str(json).expect("Failed to deserialize JSON");
-        assert_eq!(entry.pw_name, "testuser");
-        assert_eq!(entry.pw_uid, 1000);
-        assert_eq!(entry.pw_gid, 1000);
-        assert_eq!(entry.pw_gecos, "Test User");
-        assert_eq!(entry.pw_dir, "/home/testuser");
-        assert_eq!(entry.pw_shell, "/bin/bash");
-        assert_eq!(entry.source, "files");
-    }
 
     #[test]
     fn test_passwd_iterator_creation() {

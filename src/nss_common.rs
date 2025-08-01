@@ -55,6 +55,15 @@ impl NssModule {
             NssModule::Winbind => "winbind",
         }
     }
+
+    #[must_use]
+    pub fn upper_name(&self) -> &'static str {
+        match self {
+            NssModule::Files => "FILES",
+            NssModule::Sss => "SSS",
+            NssModule::Winbind => "WINBIND",
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -145,6 +154,11 @@ static NSS_LIBRARIES: OnceLock<Mutex<HashMap<NssModule, NssLibrary>>> = OnceLock
 /// # Errors
 /// Returns `NssError::LibraryError` if the library cannot be loaded or the function is not found.
 /// Returns `NssError::InvalidUtf8` if string conversion fails.
+///
+/// # Panics
+/// Panics if the internal library cache mutex is poisoned, which indicates that
+/// another thread panicked while loading NSS libraries. This represents an
+/// unrecoverable system-level failure and the application should terminate.
 pub unsafe fn get_nss_function(
     operation: NssOperation,
     module: NssModule,
@@ -153,9 +167,9 @@ pub unsafe fn get_nss_function(
     let mut guard = libraries.lock().unwrap();
 
     // Load all functions for this module if not already loaded
-    if !guard.contains_key(&module) {
+    if let std::collections::hash_map::Entry::Vacant(e) = guard.entry(module) {
         let lib = load_all_functions_for_module(module)?;
-        guard.insert(module, lib);
+        e.insert(lib);
     }
 
     // Return the specific function pointer
@@ -171,7 +185,7 @@ pub unsafe fn get_nss_function(
 
 /// Load a library and all its NSS function pointers upfront.
 ///
-/// Note: Library handles are intentionally never closed with dlclose() as this
+/// Note: Library handles are intentionally never closed with `dlclose()` as this
 /// is standard practice for NSS modules and system libraries.
 unsafe fn load_all_functions_for_module(module: NssModule) -> Result<NssLibrary, crate::NssError> {
     // Load the library once
@@ -226,6 +240,13 @@ mod tests {
         assert_eq!(NssModule::Files.name(), "files");
         assert_eq!(NssModule::Sss.name(), "sss");
         assert_eq!(NssModule::Winbind.name(), "winbind");
+    }
+
+    #[test]
+    fn test_nss_module_upper_names() {
+        assert_eq!(NssModule::Files.upper_name(), "FILES");
+        assert_eq!(NssModule::Sss.upper_name(), "SSS");
+        assert_eq!(NssModule::Winbind.upper_name(), "WINBIND");
     }
 
     #[test]

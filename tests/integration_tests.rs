@@ -17,10 +17,6 @@ mod integration_tests {
                 assert_eq!(user.source, "files");
                 assert!(!user.pw_shell.is_empty());
 
-                // Test JSON serialization
-                let json = user.to_json().expect("JSON serialization failed");
-                assert!(json.contains("root"));
-                assert!(json.contains("\"pw_uid\":0"));
             }
             Err(e) => {
                 eprintln!("Warning: getpwnam test failed (may be expected if NSS modules not available): {}", e);
@@ -37,10 +33,6 @@ mod integration_tests {
                 assert_eq!(user.pw_uid, 0);
                 assert_eq!(user.source, "files");
 
-                // Test pretty JSON
-                let json = user.to_json_pretty().expect("Pretty JSON serialization failed");
-                assert!(json.contains("root"));
-                assert!(json.contains("\n")); // Should be pretty-printed
             }
             Err(e) => {
                 eprintln!("Warning: getpwuid test failed (may be expected if NSS modules not available): {}", e);
@@ -57,10 +49,6 @@ mod integration_tests {
                 assert_eq!(group.gr_gid, 0);
                 assert_eq!(group.source, "files");
 
-                // Test JSON serialization
-                let json = group.to_json().expect("JSON serialization failed");
-                assert!(json.contains("root"));
-                assert!(json.contains("\"gr_gid\":0"));
             }
             Err(e) => {
                 eprintln!("Warning: getgrnam test failed (may be expected if NSS modules not available): {}", e);
@@ -77,10 +65,6 @@ mod integration_tests {
                 assert_eq!(group.gr_gid, 0);
                 assert_eq!(group.source, "files");
 
-                // Test pretty JSON
-                let json = group.to_json_pretty().expect("Pretty JSON serialization failed");
-                assert!(json.contains("root"));
-                assert!(json.contains("\n")); // Should be pretty-printed
             }
             Err(e) => {
                 eprintln!("Warning: getgrgid test failed (may be expected if NSS modules not available): {}", e);
@@ -231,28 +215,5 @@ mod integration_tests {
                 println!("Expected error for nonexistent group: {}", e);
             }
         }
-    }
-}
-
-// Benchmark tests (require nightly Rust and --features unstable)
-#[cfg(all(test, feature = "unstable"))]
-mod benchmarks {
-    use super::*;
-    use std::test::Bencher;
-
-    #[bench]
-    #[ignore = "Requires system NSS libraries"]
-    fn bench_getpwnam_root(b: &mut Bencher) {
-        b.iter(|| {
-            let _ = getpwnam("root", Some(NssModule::Files));
-        });
-    }
-
-    #[bench]
-    #[ignore = "Requires system NSS libraries"]
-    fn bench_getgrnam_root(b: &mut Bencher) {
-        b.iter(|| {
-            let _ = getgrnam("root", Some(NssModule::Files));
-        });
     }
 }

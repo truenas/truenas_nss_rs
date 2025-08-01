@@ -10,7 +10,6 @@ fn main() {
             println!("Found user: {}", user.pw_name);
             println!("UID: {}, GID: {}", user.pw_uid, user.pw_gid);
             println!("Home: {}, Shell: {}", user.pw_dir, user.pw_shell);
-            println!("JSON: {}", user.to_json().unwrap_or_else(|e| format!("JSON error: {}", e)));
         }
         Err(e) => println!("Error: {}", e),
     }
@@ -22,7 +21,6 @@ fn main() {
     match getpwuid(0, Some(NssModule::Files)) {
         Ok(user) => {
             println!("Found user: {}", user.pw_name);
-            println!("Pretty JSON:\n{}", user.to_json_pretty().unwrap_or_else(|e| format!("JSON error: {}", e)));
         }
         Err(e) => println!("Error: {}", e),
     }
@@ -36,7 +34,6 @@ fn main() {
             println!("Found group: {}", group.gr_name);
             println!("GID: {}", group.gr_gid);
             println!("Members: {:?}", group.gr_mem);
-            println!("JSON: {}", group.to_json().unwrap_or_else(|e| format!("JSON error: {}", e)));
         }
         Err(e) => println!("Error: {}", e),
     }
@@ -48,7 +45,6 @@ fn main() {
     match getgrgid(0, Some(NssModule::Files)) {
         Ok(group) => {
             println!("Found group: {}", group.gr_name);
-            println!("Pretty JSON:\n{}", group.to_json_pretty().unwrap_or_else(|e| format!("JSON error: {}", e)));
         }
         Err(e) => println!("Error: {}", e),
     }

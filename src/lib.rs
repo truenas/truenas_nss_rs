@@ -18,7 +18,7 @@ use pyo3::prelude::*;
 /// Python bindings for TrueNAS Rust NSS library
 #[cfg(feature = "python")]
 #[pymodule]
-fn truenas_nss(_py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
+fn truenas_nss(_py: Python, m: &PyModule) -> PyResult<()> {
     // Add the nss_common submodule
     let nss_common_module = PyModule::new(_py, "nss_common")?;
     python_bindings::nss_common::init_module(&nss_common_module)?;

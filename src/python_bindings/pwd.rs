@@ -103,7 +103,6 @@ impl From<PasswdIterator> for PyPasswdIterator {
 /// Raises:
 ///     KeyError: If the user is not found
 #[pyfunction]
-#[pyo3(signature = (name, *, module=None))]
 pub fn getpwnam(py: Python<'_>, name: &str, module: Option<PyNssModule>) -> PyResult<PyPasswdEntry> {
     use pyo3::exceptions::PyKeyError;
     use crate::{NssError, NssReturnCode};
@@ -131,8 +130,7 @@ pub fn getpwnam(py: Python<'_>, name: &str, module: Option<PyNssModule>) -> PyRe
 /// Raises:
 ///     KeyError: If the user is not found
 #[pyfunction]
-#[pyo3(signature = (uid, *, module=None))]
-pub fn getpwuid(py: Python<'_>, uid: &Bound<'_, pyo3::PyAny>, module: Option<PyNssModule>) -> PyResult<PyPasswdEntry> {
+pub fn getpwuid(py: Python<'_>, uid: &pyo3::PyAny, module: Option<PyNssModule>) -> PyResult<PyPasswdEntry> {
     use pyo3::exceptions::{PyKeyError, PyOverflowError};
     use crate::{NssError, NssReturnCode};
 
@@ -170,7 +168,6 @@ pub fn getpwuid(py: Python<'_>, uid: &Bound<'_, pyo3::PyAny>, module: Option<PyN
 ///     same passwd database concurrently in the same thread due to NSS
 ///     modules storing the handle for the pwent in thread-local variable.
 #[pyfunction]
-#[pyo3(signature = (module=PyNssModule::FILES))]
 pub fn iterpw(py: Python<'_>, module: PyNssModule) -> PyResult<PyPasswdIterator> {
     let nss_module = module.into();
     let iterator = py.allow_threads(|| rust_iterpw(nss_module));
@@ -187,7 +184,6 @@ pub fn iterpw(py: Python<'_>, module: PyNssModule) -> PyResult<PyPasswdIterator>
 ///     dict: Dictionary keyed by NSS module, e.g.
 ///           {'FILES': [<PyPasswdEntry>, <PyPasswdEntry>], 'WINBIND': [], 'SSS': []}
 #[pyfunction]
-#[pyo3(signature = (*, module=None, as_dict=false))]
 pub fn getpwall(module: Option<PyNssModule>, as_dict: bool, py: Python<'_>) -> PyResult<PyObject> {
     use crate::passwd::getpwall as rust_getpwall;
     use pyo3::types::PyDict;
@@ -230,7 +226,7 @@ pub fn getpwall(module: Option<PyNssModule>, as_dict: bool, py: Python<'_>) -> P
 
                 for (module_name, module_entries) in entries_by_module {
                     let py_objects: Vec<PyObject> = module_entries.into_iter()
-                        .map(|entry| Py::new(py, entry).unwrap().into_any())
+                        .map(|entry| Py::new(py, entry).unwrap().into_py(py))
                         .collect();
                     result_dict.set_item(module_name, py_objects)?;
                 }
@@ -242,12 +238,12 @@ pub fn getpwall(module: Option<PyNssModule>, as_dict: bool, py: Python<'_>) -> P
     }
 }
 
-pub fn init_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
+pub fn init_module(m: &PyModule) -> PyResult<()> {
     m.add_class::<PyPasswdEntry>()?;
     m.add_class::<PyPasswdIterator>()?;
-    m.add_function(wrap_pyfunction!(getpwnam, m)?)?;
-    m.add_function(wrap_pyfunction!(getpwuid, m)?)?;
-    m.add_function(wrap_pyfunction!(iterpw, m)?)?;
-    m.add_function(wrap_pyfunction!(getpwall, m)?)?;
+    m.add_wrapped(wrap_pyfunction!(getpwnam))?;
+    m.add_wrapped(wrap_pyfunction!(getpwuid))?;
+    m.add_wrapped(wrap_pyfunction!(iterpw))?;
+    m.add_wrapped(wrap_pyfunction!(getpwall))?;
     Ok(())
 }

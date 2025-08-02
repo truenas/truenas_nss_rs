@@ -2,6 +2,7 @@
 name = "truenas_rust_nss"
 version = "0.1.0"
 edition = "2021"
+rust-version = "1.63"
 description = "Rust NSS (Name Service Switch) library for user and group lookups"
 license = "GPL-3.0"
 repository = "https://github.com/truenas/truenas_nss_rs"
@@ -9,7 +10,8 @@ repository = "https://github.com/truenas/truenas_nss_rs"
 [dependencies]
 libc = "0.2"
 thiserror = "1.0"
-pyo3 = { version = "0.25", features = ["extension-module"], optional = true }
+once_cell = "1.0"
+pyo3 = { version = "0.17", features = ["extension-module"], optional = true }
 
 [dev-dependencies]
 

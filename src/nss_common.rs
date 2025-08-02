@@ -1,6 +1,7 @@
 use libc::{c_int, dlopen, dlsym, RTLD_LAZY};
 use std::ffi::CString;
-use std::sync::{OnceLock, Mutex};
+use std::sync::Mutex;
+use once_cell::sync::OnceCell;
 use std::collections::HashMap;
 
 pub const NSS_MODULES_DIR: &str = "/usr/lib/x86_64-linux-gnu";
@@ -138,7 +139,7 @@ struct NssLibrary {
 }
 
 /// Global cache of loaded NSS libraries (max 3 entries)
-static NSS_LIBRARIES: OnceLock<Mutex<HashMap<NssModule, NssLibrary>>> = OnceLock::new();
+static NSS_LIBRARIES: OnceCell<Mutex<HashMap<NssModule, NssLibrary>>> = OnceCell::new();
 
 /// Gets a function pointer from an NSS module library.
 ///

@@ -64,7 +64,7 @@ impl From<RustNssError> for PyErr {
     }
 }
 
-pub fn init_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
+pub fn init_module(m: &PyModule) -> PyResult<()> {
     m.add_class::<PyNssModule>()?;
     m.add("NssError", m.py().get_type::<NssError>())?;
     Ok(())

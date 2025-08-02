@@ -4,7 +4,7 @@ Priority: optional
 Maintainer: TrueNAS Team <support@truenas.com>
 Build-Depends: debhelper (>= 13),
                cargo,
-               rustc (>= 1.70),
+               rustc (>= 1.63),
                pkg-config,
                libc6-dev,
                python3-dev,

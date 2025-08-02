@@ -89,7 +89,6 @@ impl From<GroupIterator> for PyGroupIterator {
 /// Raises:
 ///     KeyError: If the group is not found
 #[pyfunction]
-#[pyo3(signature = (name, *, module=None))]
 pub fn getgrnam(py: Python<'_>, name: &str, module: Option<PyNssModule>) -> PyResult<PyGroupEntry> {
     use pyo3::exceptions::PyKeyError;
     use crate::{NssError, NssReturnCode};
@@ -117,8 +116,7 @@ pub fn getgrnam(py: Python<'_>, name: &str, module: Option<PyNssModule>) -> PyRe
 /// Raises:
 ///     KeyError: If the group is not found
 #[pyfunction]
-#[pyo3(signature = (gid, *, module=None))]
-pub fn getgrgid(py: Python<'_>, gid: &Bound<'_, pyo3::PyAny>, module: Option<PyNssModule>) -> PyResult<PyGroupEntry> {
+pub fn getgrgid(py: Python<'_>, gid: &pyo3::PyAny, module: Option<PyNssModule>) -> PyResult<PyGroupEntry> {
     use pyo3::exceptions::{PyKeyError, PyOverflowError};
     use crate::{NssError, NssReturnCode};
 
@@ -156,7 +154,6 @@ pub fn getgrgid(py: Python<'_>, gid: &Bound<'_, pyo3::PyAny>, module: Option<PyN
 ///     same group database concurrently in the same thread due to NSS
 ///     modules storing the handle for the grent in thread-local variable.
 #[pyfunction]
-#[pyo3(signature = (module=PyNssModule::FILES))]
 pub fn itergrp(py: Python<'_>, module: PyNssModule) -> PyResult<PyGroupIterator> {
     let nss_module = module.into();
     let iterator = py.allow_threads(|| rust_itergrp(nss_module));
@@ -173,7 +170,6 @@ pub fn itergrp(py: Python<'_>, module: PyNssModule) -> PyResult<PyGroupIterator>
 ///     dict: Dictionary keyed by NSS module, e.g.
 ///           {'FILES': [<PyGroupEntry>, <PyGroupEntry>], 'WINBIND': [], 'SSS': []}
 #[pyfunction]
-#[pyo3(signature = (*, module=None, as_dict=false))]
 pub fn getgrall(module: Option<PyNssModule>, as_dict: bool, py: Python<'_>) -> PyResult<PyObject> {
     use crate::group::getgrall as rust_getgrall;
     use pyo3::types::PyDict;
@@ -216,7 +212,7 @@ pub fn getgrall(module: Option<PyNssModule>, as_dict: bool, py: Python<'_>) -> P
 
                 for (module_name, module_entries) in entries_by_module {
                     let py_objects: Vec<PyObject> = module_entries.into_iter()
-                        .map(|entry| Py::new(py, entry).unwrap().into_any())
+                        .map(|entry| Py::new(py, entry).unwrap().into_py(py))
                         .collect();
                     result_dict.set_item(module_name, py_objects)?;
                 }
@@ -228,12 +224,12 @@ pub fn getgrall(module: Option<PyNssModule>, as_dict: bool, py: Python<'_>) -> P
     }
 }
 
-pub fn init_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
+pub fn init_module(m: &PyModule) -> PyResult<()> {
     m.add_class::<PyGroupEntry>()?;
     m.add_class::<PyGroupIterator>()?;
-    m.add_function(wrap_pyfunction!(getgrnam, m)?)?;
-    m.add_function(wrap_pyfunction!(getgrgid, m)?)?;
-    m.add_function(wrap_pyfunction!(itergrp, m)?)?;
-    m.add_function(wrap_pyfunction!(getgrall, m)?)?;
+    m.add_wrapped(wrap_pyfunction!(getgrnam))?;
+    m.add_wrapped(wrap_pyfunction!(getgrgid))?;
+    m.add_wrapped(wrap_pyfunction!(itergrp))?;
+    m.add_wrapped(wrap_pyfunction!(getgrall))?;
     Ok(())
 }

@@ -15,30 +15,47 @@ export DEB_CPPFLAGS_MAINT_APPEND = -D_FORTIFY_SOURCE=2
 # package maintainers to append LDFLAGS
 export DEB_LDFLAGS_MAINT_APPEND = -Wl,--as-needed
 
-# Cargo configuration
+# Cargo and Rust configuration
 export CARGO_HOME = $(CURDIR)/debian/cargo_home
+export RUSTUP_HOME = $(CURDIR)/debian/rustup_home
+export PATH := $(CARGO_HOME)/bin:$(PATH)
 
 %:
 	dh $@
 
 override_dh_auto_configure:
-	# Initialize cargo home
-	mkdir -p $(CARGO_HOME)
+	# Initialize cargo and rustup homes
+	mkdir -p $(CARGO_HOME) $(RUSTUP_HOME)
+	# Install rustup if not already present
+	if [ ! -f $(CARGO_HOME)/bin/rustup ]; then \
+		echo "Installing rustup..."; \
+		curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | \
+		env CARGO_HOME=$(CARGO_HOME) RUSTUP_HOME=$(RUSTUP_HOME) \
+		sh -s -- -y --no-modify-path --default-toolchain stable; \
+	fi
+	# Update to latest stable and set as default
+	$(CARGO_HOME)/bin/rustup update stable
+	$(CARGO_HOME)/bin/rustup default stable
+	# Verify installation
+	$(CARGO_HOME)/bin/rustc --version
+	$(CARGO_HOME)/bin/cargo --version
 
 override_dh_auto_build:
-	# Build the library in release mode
-	cargo build --release --lib
+	# Build the library in release mode using rustup-installed cargo
+	$(CARGO_HOME)/bin/cargo build --release --lib
 	# Build benchmarks (optional, for completeness)
-	cargo build --release --benches
+	$(CARGO_HOME)/bin/cargo build --release --benches
 	# Create Python virtual environment and install maturin
 	python3 -m venv debian/python-build-env
 	. debian/python-build-env/bin/activate && pip install --upgrade pip maturin
-	# Build Python wheel
-	. debian/python-build-env/bin/activate && maturin build --release --features python --out target/wheels/
+	# Build Python wheel using rustup-installed cargo
+	. debian/python-build-env/bin/activate && \
+	env PATH=$(CARGO_HOME)/bin:$$PATH \
+	maturin build --release --features python --out target/wheels/
 
 override_dh_auto_test:
-	# Run tests
-	cargo test --release
+	# Run tests using rustup-installed cargo
+	$(CARGO_HOME)/bin/cargo test --release
 
 override_dh_auto_install:
 	# Install Rust library file for development
@@ -57,8 +74,8 @@ override_dh_auto_install:
 
 override_dh_auto_clean:
 	# Clean cargo build artifacts
-	cargo clean || true
-	rm -rf $(CARGO_HOME)
+	if [ -f $(CARGO_HOME)/bin/cargo ]; then $(CARGO_HOME)/bin/cargo clean || true; fi
+	rm -rf $(CARGO_HOME) $(RUSTUP_HOME)
 	# Clean Python build environment
 	rm -rf debian/python-build-env
 
